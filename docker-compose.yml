@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  code-review-bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: code-review-bot
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
+      - GITHUB_WEBHOOK_SECRET=${GITHUB_WEBHOOK_SECRET}
+      - LLM_PROVIDER=${LLM_PROVIDER:-openai}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4}
+      - MINIMAX_API_KEY=${MINIMAX_API_KEY}
+      - MINIMAX_MODEL=${MINIMAX_MODEL:-MiniMax-Text-01}
+      - LLM_BASE_URL=${LLM_BASE_URL}
+      - DEBUG=${DEBUG:-false}
+      - GIN_MODE=release
+    volumes:
+      - ./config.yaml:/app/config.yaml:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # Local development with hot reload
+  code-review-bot-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: code-review-bot-dev
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
+      - GITHUB_WEBHOOK_SECRET=${GITHUB_WEBHOOK_SECRET}
+      - LLM_PROVIDER=${LLM_PROVIDER:-openai}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4}
+      - MINIMAX_API_KEY=${MINIMAX_API_KEY}
+      - MINIMAX_MODEL=${MINIMAX_MODEL:-MiniMax-Text-01}
+      - LLM_BASE_URL=${LLM_BASE_URL}
+      - DEBUG=true
+      - GIN_MODE=debug
+    volumes:
+      - .:/app
+      - ./config.yaml:/app/config.yaml:ro
+    command: ["sh", "-c", "go run main.go"]
+    restart: unless-stopped

@@ -1,2 +1,33 @@
-node_modules/
+# Binaries
+code-review-bot
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Go
+vendor/
+go.work
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Configuration
 .env
+.env.local
+
+# Documentation
+*.md
+!README.md
+
+# Test coverage
+*.out
+coverage.txt

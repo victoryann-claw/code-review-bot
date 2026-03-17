@@ -1,0 +1,27 @@
+# CodeReviewBot Configuration
+
+server:
+  port: "3000"
+
+github:
+  # GitHub Personal Access Token with repo scope
+  token: ""
+  # Webhook secret for signature validation
+  webhook_secret: ""
+
+llm:
+  # LLM provider: "openai" or "minimax"
+  provider: "openai"
+  # API key for the LLM provider
+  api_key: ""
+  # Model name (e.g., "gpt-4" for OpenAI, "MiniMax-Text-01" for MiniMax)
+  model: "gpt-4"
+  # Base URL for API (optional, default for OpenAI/MiniMax)
+  base_url: ""
+  # Temperature for LLM (0.0 - 1.0)
+  temperature: 0.3
+  # Maximum tokens for response
+  max_tokens: 8000
+
+# Enable debug logging
+debug: false

@@ -1,0 +1,46 @@
+# Git
+.git
+.gitignore
+
+# Build artifacts
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Test coverage
+*.out
+coverage.txt
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Documentation
+README.md
+docs/
+*.md
+
+# Development
+.env
+.env.local
+docker-compose.override.yml
+
+# Node.js (for original project)
+node_modules/
+package.json
+package-lock.json
+
+# Go
+vendor/
+
+# Temporary files
+tmp/
+temp/
