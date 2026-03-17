@@ -1,12 +1,55 @@
 const OpenAI = require('openai');
 
-// Initialize OpenAI client
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
-});
+/**
+ * LLM Provider Factory
+ * Supports: OpenAI, MiniMax
+ */
+class LLMProvider {
+  constructor() {
+    this.provider = process.env.LLM_PROVIDER || 'openai';
+    
+    if (this.provider === 'minimax') {
+      this.minimax = new OpenAI({
+        apiKey: process.env.MINIMAX_API_KEY,
+        baseURL: 'https://api.minimax.chat/v1'
+      });
+    } else {
+      // Default to OpenAI
+      this.openai = new OpenAI({
+        apiKey: process.env.OPENAI_API_KEY
+      });
+    }
+  }
+
+  async chatCompletion(messages, options = {}) {
+    const defaultOptions = {
+      temperature: 0.3,
+      max_tokens: 8000
+    };
+
+    const opts = { ...defaultOptions, ...options };
+
+    if (this.provider === 'minimax') {
+      // MiniMax uses different model format: MiniMax-Text-01
+      return await this.minimax.chat.completions.create({
+        model: process.env.MINIMAX_MODEL || 'MiniMax-Text-01',
+        messages,
+        ...opts
+      });
+    } else {
+      return await this.openai.chat.completions.create({
+        model: process.env.OPENAI_MODEL || 'gpt-4',
+        messages,
+        ...opts
+      });
+    }
+  }
+}
+
+const llm = new LLMProvider();
 
 /**
- * Analyze code using OpenAI
+ * Analyze code using LLM (OpenAI or MiniMax)
  * @param {string} diff - Pull request diff
  * @param {object} prDetails - Pull request details
  * @returns {Promise<Array>} - Array of review issues
@@ -32,15 +75,10 @@ Diff:
 ${diff}`;
 
   try {
-    const response = await openai.chat.completions.create({
-      model: process.env.OPENAI_MODEL || 'gpt-4',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt }
-      ],
-      temperature: 0.3,
-      max_tokens: 8000
-    });
+    const response = await llm.chatCompletion([
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userPrompt }
+    ]);
 
     const content = response.choices[0].message.content;
 
@@ -58,7 +96,7 @@ ${diff}`;
     }
 
   } catch (error) {
-    console.error('OpenAI API error:', error);
+    console.error('LLM API error:', error);
     throw error;
   }
 }
