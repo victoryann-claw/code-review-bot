@@ -29,7 +29,8 @@ func NewGitHubClient(token string) *GitHubClient {
 
 // GetPullRequestDetails gets pull request details
 func (g *GitHubClient) GetPullRequestDetails(ctx context.Context, owner, repo string, prNumber int) (*types.PRDetails, error) {
-	fmt.Printf("[DEBUG] Fetching PR details for %s/%s #%d\n", owner, repo, prNumber)
+	fmt.Printf("[DEBUG] Fetching PR details for %s/%s #%d
+", owner, repo, prNumber)
 	
 	pr, _, err := g.client.PullRequests.Get(ctx, owner, repo, prNumber)
 	if err != nil {
@@ -49,7 +50,8 @@ func (g *GitHubClient) GetPullRequestDetails(ctx context.Context, owner, repo st
 
 // GetPullRequestDiff gets pull request diff
 func (g *GitHubClient) GetPullRequestDiff(ctx context.Context, owner, repo string, prNumber int) (string, error) {
-	fmt.Printf("[DEBUG] Fetching PR diff for %s/%s #%d\n", owner, repo, prNumber)
+	fmt.Printf("[DEBUG] Fetching PR diff for %s/%s #%d
+", owner, repo, prNumber)
 	
 	// Use GitHub's raw diff endpoint
 	url := fmt.Sprintf("https://api.github.com/repos/%s/%s/pulls/%d.diff", owner, repo, prNumber)
@@ -86,7 +88,8 @@ func (g *GitHubClient) GetPullRequestDiff(ctx context.Context, owner, repo strin
 
 // CreateReviewComment creates a comment on the pull request
 func (g *GitHubClient) CreateReviewComment(ctx context.Context, owner, repo string, prNumber int, body string) (*github.IssueComment, error) {
-	fmt.Printf("[DEBUG] Creating review comment for %s/%s #%d\n", owner, repo, prNumber)
+	fmt.Printf("[DEBUG] Creating review comment for %s/%s #%d
+", owner, repo, prNumber)
 	
 	comment, _, err := g.client.Issues.CreateComment(ctx, owner, repo, prNumber, &github.IssueComment{
 		Body: github.String(body),
@@ -100,7 +103,8 @@ func (g *GitHubClient) CreateReviewComment(ctx context.Context, owner, repo stri
 
 // CreatePullRequestReview creates a review with inline comments
 func (g *GitHubClient) CreatePullRequestReview(ctx context.Context, owner, repo string, prNumber int, body string, comments []*github.DraftReviewComment) (*github.PullRequestReview, error) {
-	fmt.Printf("[DEBUG] Creating PR review for %s/%s #%d\n", owner, repo, prNumber)
+	fmt.Printf("[DEBUG] Creating PR review for %s/%s #%d
+", owner, repo, prNumber)
 	
 	review := &github.PullRequestReviewRequest{
 		Body:     github.String(body),
@@ -114,4 +118,30 @@ func (g *GitHubClient) CreatePullRequestReview(ctx context.Context, owner, repo 
 	}
 	
 	return result, nil
+}
+
+// AddLabel adds a label to the pull request
+func (g *GitHubClient) AddLabel(ctx context.Context, owner, repo string, prNumber int, label string) error {
+	fmt.Printf("[DEBUG] Adding label '%s' to PR #%d
+", label, prNumber)
+	
+	_, _, err := g.client.Issues.AddLabelsToIssue(ctx, owner, repo, prNumber, []string{label})
+	if err != nil {
+		return fmt.Errorf("failed to add label: %w", err)
+	}
+	
+	return nil
+}
+
+// RemoveLabel removes a label from the pull request
+func (g *GitHubClient) RemoveLabel(ctx context.Context, owner, repo string, prNumber int, label string) error {
+	fmt.Printf("[DEBUG] Removing label '%s' from PR #%d
+", label, prNumber)
+	
+	_, _, err := g.client.Issues.RemoveLabelForIssue(ctx, owner, repo, prNumber, label)
+	if err != nil {
+		return fmt.Errorf("failed to remove label: %w", err)
+	}
+	
+	return nil
 }
