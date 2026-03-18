@@ -18,6 +18,7 @@ import (
 // GitHubEvent represents a GitHub webhook event
 type GitHubEvent struct {
 	Action      string `json:"action"`
+	Number     int `json:"number"`
 	PullRequest struct {
 		Number int `json:"number"`
 		Title  string `json:"title"`
@@ -108,6 +109,9 @@ func HandleWebhook(c *gin.Context) {
 	owner := repo.Owner.Login
 	repoName := repo.Name
 	prNumber := pr.Number
+	if prNumber == 0 {
+		prNumber = eventPayload.Number
+	}
 
 	DebugLog("Processing PR #%d from %s/%s", prNumber, owner, repoName)
 
