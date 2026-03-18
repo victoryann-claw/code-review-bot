@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"strings"
 
@@ -82,7 +83,7 @@ func NewLLMAnalyzer() *LLMAnalyzer {
 
 // AnalyzeCode analyzes code diff using LLM
 func (a *LLMAnalyzer) AnalyzeCode(ctx context.Context, diff string, prDetails *types.PRDetails) ([]types.Issue, error) {
-	fmt.Printf("[DEBUG] Analyzing code with LLM (%s, provider: %s)\n", a.model, a.provider)
+	log.Printf("[DEBUG] Analyzing code with LLM (%s, provider: %s)", a.model, a.provider)
 	
 	systemPrompt := `你是一位资深的代码审查专家。请分析以下 GitHub Pull Request 的代码差异，识别潜在的问题、bug、安全漏洞、代码质量问题或改进建议。
 
@@ -152,11 +153,11 @@ func (a *LLMAnalyzer) AnalyzeCode(ctx context.Context, diff string, prDetails *t
 	// Parse JSON response
 	issues, err := parseIssues(content)
 	if err != nil {
-		fmt.Printf("[DEBUG] Failed to parse LLM response: %v\n", err)
+		log.Printf("[DEBUG] Failed to parse LLM response: %v", err)
 		return []types.Issue{}, nil
 	}
 
-	fmt.Printf("[DEBUG] LLM found %d issues\n", len(issues))
+	log.Printf("[DEBUG] LLM found %d issues", len(issues))
 	return issues, nil
 }
 
@@ -210,7 +211,7 @@ func parseIssues(content string) ([]types.Issue, error) {
 	}
 
 	// Log warning if all parsing methods fail
-	fmt.Printf("[WARN] Failed to parse LLM response (length: %d), trying alternative extraction\n", len(content))
+	log.Printf("[WARN] Failed to parse LLM response (length: %d), trying alternative extraction", len(content))
 	return []types.Issue{}, nil
 }
 
