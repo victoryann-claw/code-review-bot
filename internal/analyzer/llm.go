@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/sashabaranov/go-openai"
 	"github.com/victoryann-claw/code-review-bot/internal/types"
@@ -25,11 +26,11 @@ func NewLLMAnalyzer() *LLMAnalyzer {
 	if provider == "" {
 		provider = "openai"
 	}
-	
+
 	var model string
 	var apiKey string
 	var baseURL string
-	
+
 	switch provider {
 	case "bailian", "aliyun", "qwen":
 		// Alibaba Cloud Bailian (阿里云百炼)
@@ -42,7 +43,7 @@ func NewLLMAnalyzer() *LLMAnalyzer {
 			model = "qwen3.5-plus"
 		}
 		baseURL = "https://dashscope.aliyuncs.com/compatible-mode/v1"
-		
+
 	case "minimax":
 		apiKey = os.Getenv("MINIMAX_API_KEY")
 		if apiKey == "" {
@@ -53,7 +54,7 @@ func NewLLMAnalyzer() *LLMAnalyzer {
 			model = "MiniMax-Text-01"
 		}
 		baseURL = "https://api.minimax.chat/v1"
-		
+
 	default: // openai
 		apiKey = os.Getenv("OPENAI_API_KEY")
 		model = os.Getenv("OPENAI_MODEL")
@@ -62,12 +63,12 @@ func NewLLMAnalyzer() *LLMAnalyzer {
 		}
 		baseURL = os.Getenv("LLM_BASE_URL")
 	}
-	
+
 	cfg := openai.DefaultConfig(apiKey)
 	if baseURL != "" {
 		cfg.BaseURL = baseURL
 	}
-	
+
 	client := openai.NewClientWithConfig(cfg)
 
 	return &LLMAnalyzer{
@@ -82,18 +83,38 @@ func NewLLMAnalyzer() *LLMAnalyzer {
 // AnalyzeCode analyzes code diff using LLM
 func (a *LLMAnalyzer) AnalyzeCode(ctx context.Context, diff string, prDetails *types.PRDetails) ([]types.Issue, error) {
 	fmt.Printf("[DEBUG] Analyzing code with LLM (%s, provider: %s)\n", a.model, a.provider)
-	
-	systemPrompt := `You are an expert code reviewer. Analyze the following GitHub pull request diff and identify potential issues, bugs, security vulnerabilities, code quality problems, or suggestions for improvement.
 
-For each issue found, respond with a JSON array of objects with these fields:
-- type: "bug", "security", "performance", "style", "suggestion"
-- severity: "high", "medium", "low"
-- file: filename (if applicable)
-- line: line number (if applicable)
-- description: brief description of the issue
-- suggestion: how to fix or improve
+	systemPrompt := `你是一位资深的代码审查专家。请分析以下 GitHub Pull Request 的代码差异，识别潜在的问题、bug、安全漏洞、代码质量问题或改进建议。
 
-Respond ONLY with a valid JSON array. If no issues found, return an empty array [].`
+请用中文回复。description（问题描述）和 suggestion（修复建议）必须使用中文。
+
+重要：JSON 键名必须保持英文，否则后端无法解析。返回格式如下：
+- type: 问题类型，如 "bug"、"security"、"performance"、"style"、"suggestion"（必须英文）
+- severity: 严重程度，如 "high"、"medium"、"low"（必须英文）
+- file: 文件名（如适用）
+- line: 行号（如适用）
+- description: 问题的简要描述（必须使用中文）
+- suggestion: 如何修复或改进（必须使用中文）
+
+请只返回一个有效的 JSON 数组。如果没有发现问题，返回空数组 []。
+
+响应示例（不要包含 markdown 代码块标记，直接返回 JSON）：
+[
+  {
+    "type": "bug",
+    "severity": "high",
+    "file": "internal/handler/webhook.go",
+    "line": 42,
+    "description": "空指针解引用风险：user 变量可能为 nil",
+    "suggestion": "在使用前检查 user 是否为 nil"
+  },
+  {
+    "type": "style",
+    "severity": "low",
+    "description": "代码格式不规范，建议使用 gofmt 格式化",
+    "suggestion": "运行 gofmt -w . 格式化代码"
+  }
+]`
 
 	userPrompt := buildUserPrompt(diff, prDetails)
 
@@ -113,14 +134,14 @@ Respond ONLY with a valid JSON array. If no issues found, return an empty array 
 		Temperature: a.temperature,
 		MaxTokens:   a.maxTokens,
 	}
-	
+
 	// Add response format for Bailian
 	if a.provider == "bailian" || a.provider == "aliyun" || a.provider == "qwen" {
 		req.ResponseFormat = openai.ChatCompletionResponseFormat{
 			Type: "json_object",
 		}
 	}
-	
+
 	resp, err := a.client.CreateChatCompletion(ctx, req)
 	if err != nil {
 		return nil, err
@@ -152,7 +173,7 @@ func parseIssues(content string) ([]types.Issue, error) {
 	// Try to extract JSON from markdown code blocks
 	start := 0
 	end := len(content)
-	
+
 	// Check for markdown code block
 	if idx := findAnyIndex(content, "```json", "```"); idx != -1 {
 		start = idx + len("```json")
@@ -160,27 +181,22 @@ func parseIssues(content string) ([]types.Issue, error) {
 			end = start + endIdx
 		}
 	}
-	
+
 	jsonStr := content[start:end]
-	// Trim whitespace
-	for len(jsonStr) > 0 && (jsonStr[0] == ' ' || jsonStr[0] == '\n' || jsonStr[0] == '\r' || jsonStr[0] == '\t') {
-		jsonStr = jsonStr[1:]
-	}
-	for len(jsonStr) > 0 && (jsonStr[len(jsonStr)-1] == ' ' || jsonStr[len(jsonStr)-1] == '\n' || jsonStr[len(jsonStr)-1] == '\r' || jsonStr[len(jsonStr)-1] == '\t') {
-		jsonStr = jsonStr[:len(jsonStr)-1]
-	}
-	
+	// Use standard library to trim whitespace
+	jsonStr = strings.TrimSpace(jsonStr)
+
 	// Try direct parse first
 	var issues []types.Issue
 	if err := json.Unmarshal([]byte(jsonStr), &issues); err == nil {
 		return issues, nil
 	}
-	
-	// Try to find JSON array in the content
+
+	// Fallback: search for JSON array in the original content (for unrecognized markdown formats)
 	startIdx := -1
 	endIdx := -1
 	depth := 0
-	
+
 	for i, c := range content {
 		if c == '[' && startIdx == -1 {
 			startIdx = i
@@ -195,14 +211,16 @@ func parseIssues(content string) ([]types.Issue, error) {
 			}
 		}
 	}
-	
+
 	if startIdx != -1 && endIdx != -1 {
 		jsonStr = content[startIdx:endIdx]
 		if err := json.Unmarshal([]byte(jsonStr), &issues); err == nil {
 			return issues, nil
 		}
 	}
-	
+
+	// Log warning if all parsing methods fail
+	fmt.Printf("[WARN] Failed to parse LLM response as JSON, content: %s\n", content)
 	return []types.Issue{}, nil
 }
 
