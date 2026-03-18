@@ -104,3 +104,4 @@ func getIcon(issueType string) string {
 	}
 	return "📝"
 }
+// Chinese review
