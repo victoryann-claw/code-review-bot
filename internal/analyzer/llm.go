@@ -190,7 +190,9 @@ func parseIssues(content string) ([]types.Issue, error) {
 			return issues, nil
 		}
 	}
-	
+
+	// Log warning if all parsing methods fail
+	fmt.Printf("[WARN] Failed to parse LLM response as JSON, content: %s\n", content)
 	return []types.Issue{}, nil
 }
 
