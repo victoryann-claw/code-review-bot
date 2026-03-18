@@ -31,7 +31,7 @@ func NewGitHubClient(token string) *GitHubClient {
 // GetPullRequestDetails gets pull request details
 func (g *GitHubClient) GetPullRequestDetails(ctx context.Context, owner, repo string, prNumber int) (*types.PRDetails, error) {
 	log.Printf("[DEBUG] Fetching PR details for %s/%s #%d", owner, repo, prNumber)
-	
+
 	pr, _, err := g.client.PullRequests.Get(ctx, owner, repo, prNumber)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get pull request: %w", err)
@@ -51,44 +51,44 @@ func (g *GitHubClient) GetPullRequestDetails(ctx context.Context, owner, repo st
 // GetPullRequestDiff gets pull request diff
 func (g *GitHubClient) GetPullRequestDiff(ctx context.Context, owner, repo string, prNumber int) (string, error) {
 	log.Printf("[DEBUG] Fetching PR diff for %s/%s #%d", owner, repo, prNumber)
-	
+
 	// Use GitHub's raw diff endpoint
 	url := fmt.Sprintf("https://api.github.com/repos/%s/%s/pulls/%d.diff", owner, repo, prNumber)
-	
+
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return "", fmt.Errorf("failed to create request: %w", err)
 	}
-	
+
 	if g.token != "" {
 		req.Header.Set("Authorization", "Bearer "+g.token)
 	}
 	req.Header.Set("Accept", "application/vnd.github.v3.diff")
 	req.Header.Set("X-GitHub-Api-Version", "2022-11-28")
-	
+
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("failed to fetch diff: %w", err)
 	}
 	defer resp.Body.Close()
-	
+
 	if resp.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("failed to fetch diff: status %d", resp.StatusCode)
 	}
-	
+
 	buf := make([]byte, resp.ContentLength+1024)
 	n, err := resp.Body.Read(buf)
 	if err != nil && err.Error() != "EOF" {
 		return "", fmt.Errorf("failed to read diff: %w", err)
 	}
-	
+
 	return string(buf[:n]), nil
 }
 
 // CreateReviewComment creates a comment on the pull request
 func (g *GitHubClient) CreateReviewComment(ctx context.Context, owner, repo string, prNumber int, body string) (*github.IssueComment, error) {
 	log.Printf("[DEBUG] Creating review comment for %s/%s #%d", owner, repo, prNumber)
-	
+
 	comment, _, err := g.client.Issues.CreateComment(ctx, owner, repo, prNumber, &github.IssueComment{
 		Body: github.String(body),
 	})
@@ -102,17 +102,17 @@ func (g *GitHubClient) CreateReviewComment(ctx context.Context, owner, repo stri
 // CreatePullRequestReview creates a review with inline comments
 func (g *GitHubClient) CreatePullRequestReview(ctx context.Context, owner, repo string, prNumber int, body string, comments []*github.DraftReviewComment) (*github.PullRequestReview, error) {
 	log.Printf("[DEBUG] Creating PR review for %s/%s #%d", owner, repo, prNumber)
-	
+
 	review := &github.PullRequestReviewRequest{
 		Body:     github.String(body),
-		Event:   github.String("COMMENT"),
+		Event:    github.String("COMMENT"),
 		Comments: comments,
 	}
-	
+
 	result, _, err := g.client.PullRequests.CreateReview(ctx, owner, repo, prNumber, review)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create review: %w", err)
 	}
-	
+
 	return result, nil
 }

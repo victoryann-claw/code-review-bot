@@ -36,7 +36,7 @@ func FormatReviewComment(issues []Issue) string {
 	}
 
 	comment := "## 🤖 AI 代码审查\n\n"
-	comment += fmt.Sprintf("发现 %d 个问题：%d 个高危，%d 个中危，%d 个低危\n\n", 
+	comment += fmt.Sprintf("发现 %d 个问题：%d 个高危，%d 个中危，%d 个低危\n\n",
 		len(issues), len(high), len(medium), len(low))
 
 	if len(high) > 0 {

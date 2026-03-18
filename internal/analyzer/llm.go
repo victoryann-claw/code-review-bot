@@ -27,11 +27,11 @@ func NewLLMAnalyzer() *LLMAnalyzer {
 	if provider == "" {
 		provider = "openai"
 	}
-	
+
 	var model string
 	var apiKey string
 	var baseURL string
-	
+
 	switch provider {
 	case "bailian", "aliyun", "qwen":
 		// Alibaba Cloud Bailian (阿里云百炼)
@@ -44,7 +44,7 @@ func NewLLMAnalyzer() *LLMAnalyzer {
 			model = "qwen3.5-plus"
 		}
 		baseURL = "https://dashscope.aliyuncs.com/compatible-mode/v1"
-		
+
 	case "minimax":
 		apiKey = os.Getenv("MINIMAX_API_KEY")
 		if apiKey == "" {
@@ -55,7 +55,7 @@ func NewLLMAnalyzer() *LLMAnalyzer {
 			model = "MiniMax-Text-01"
 		}
 		baseURL = "https://api.minimax.chat/v1"
-		
+
 	default: // openai
 		apiKey = os.Getenv("OPENAI_API_KEY")
 		model = os.Getenv("OPENAI_MODEL")
@@ -64,12 +64,12 @@ func NewLLMAnalyzer() *LLMAnalyzer {
 		}
 		baseURL = os.Getenv("LLM_BASE_URL")
 	}
-	
+
 	cfg := openai.DefaultConfig(apiKey)
 	if baseURL != "" {
 		cfg.BaseURL = baseURL
 	}
-	
+
 	client := openai.NewClientWithConfig(cfg)
 
 	return &LLMAnalyzer{
@@ -84,7 +84,7 @@ func NewLLMAnalyzer() *LLMAnalyzer {
 // AnalyzeCode analyzes code diff using LLM
 func (a *LLMAnalyzer) AnalyzeCode(ctx context.Context, diff string, prDetails *types.PRDetails) ([]types.Issue, error) {
 	log.Printf("[DEBUG] Analyzing code with LLM (%s, provider: %s)", a.model, a.provider)
-	
+
 	systemPrompt := `你是一位资深的代码审查专家。请分析以下 GitHub Pull Request 的代码差异，识别潜在的问题、bug、安全漏洞、代码质量问题或改进建议。
 
 请用中文回复。description（问题描述）和 suggestion（修复建议）必须使用中文。
@@ -135,14 +135,14 @@ func (a *LLMAnalyzer) AnalyzeCode(ctx context.Context, diff string, prDetails *t
 		Temperature: a.temperature,
 		MaxTokens:   a.maxTokens,
 	}
-	
+
 	// Add response format for Bailian
 	if a.provider == "bailian" || a.provider == "aliyun" || a.provider == "qwen" {
 		req.ResponseFormat = openai.ChatCompletionResponseFormat{
 			Type: "json_object",
 		}
 	}
-	
+
 	resp, err := a.client.CreateChatCompletion(ctx, req)
 	if err != nil {
 		return nil, err
@@ -173,27 +173,27 @@ Diff:
 func parseIssues(content string) ([]types.Issue, error) {
 	// Trim whitespace first
 	content = strings.TrimSpace(content)
-	
+
 	// Try direct parse first (in case LLM returns clean JSON without markdown)
 	var issues []types.Issue
 	if err := json.Unmarshal([]byte(content), &issues); err == nil {
 		return issues, nil
 	}
-	
+
 	// Try to remove markdown code blocks and parse again
 	jsonStr := removeMarkdownCodeBlocks(content)
 	jsonStr = strings.TrimSpace(jsonStr)
-	
+
 	if err := json.Unmarshal([]byte(jsonStr), &issues); err == nil {
 		return issues, nil
 	}
-	
+
 	// Fallback: try to find JSON array in the original content using bracket matching
 	// This handles cases where content contains nested backticks
 	startIdx := -1
 	endIdx := -1
 	depth := 0
-	
+
 	for i, c := range content {
 		if c == '[' && startIdx == -1 {
 			startIdx = i
@@ -208,7 +208,7 @@ func parseIssues(content string) ([]types.Issue, error) {
 			}
 		}
 	}
-	
+
 	if startIdx != -1 && endIdx != -1 {
 		jsonStr = content[startIdx:endIdx]
 		if err := json.Unmarshal([]byte(jsonStr), &issues); err == nil {
@@ -217,8 +217,8 @@ func parseIssues(content string) ([]types.Issue, error) {
 	}
 
 	// Log warning if all parsing methods fail
-	log.Printf("[WARN] Failed to parse LLM response (length: %d), trying alternative extraction", len(content))
-	return []types.Issue{}, nil
+	log.Printf("[WARN] Failed to parse LLM response after all attempts (length: %d)", len(content))
+	return []types.Issue{}, fmt.Errorf("failed to parse LLM response: invalid JSON format")
 }
 
 // removeMarkdownCodeBlocks removes only the code block markers (```json and ```)
@@ -227,7 +227,7 @@ func removeMarkdownCodeBlocks(content string) string {
 	// Try to find ```json first, then ```
 	var startIdx int
 	var marker string
-	
+
 	if idx := strings.Index(content, "```json"); idx != -1 {
 		startIdx = idx
 		marker = "```json"
@@ -238,17 +238,17 @@ func removeMarkdownCodeBlocks(content string) string {
 		// No code block found, return original content
 		return content
 	}
-	
+
 	// Get content after the opening marker
 	afterMarker := content[startIdx+len(marker):]
-	
+
 	// Find the closing ```
 	endIdx := strings.Index(afterMarker, "```")
 	if endIdx == -1 {
 		// No closing marker found, return content after opening marker
 		return afterMarker
 	}
-	
+
 	// Return only the content between markers
 	return afterMarker[:endIdx]
 }

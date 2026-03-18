@@ -132,10 +132,10 @@ func TestGetEnvOrDefault(t *testing.T) {
 	defer os.Unsetenv("TEST_ENV_VAR")
 
 	tests := []struct {
-		name        string
-		key         string
-		defaultVal  string
-		want        string
+		name       string
+		key        string
+		defaultVal string
+		want       string
 	}{
 		{
 			name:       "environment variable exists",
