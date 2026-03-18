@@ -154,7 +154,8 @@ func (a *LLMAnalyzer) AnalyzeCode(ctx context.Context, diff string, prDetails *t
 	issues, err := parseIssues(content)
 	if err != nil {
 		log.Printf("[DEBUG] Failed to parse LLM response: %v", err)
-		return []types.Issue{}, nil
+		// Return empty issues with error to indicate parsing failure
+		return nil, fmt.Errorf("failed to parse LLM response: %w", err)
 	}
 
 	log.Printf("[DEBUG] LLM found %d issues", len(issues))
@@ -222,7 +223,7 @@ func parseIssues(content string) ([]types.Issue, error) {
 }
 
 // removeMarkdownCodeBlocks removes only the code block markers (```json and ```)
-// and returns the content between them
+// and returns the content between them. Returns empty string if content is not valid JSON.
 func removeMarkdownCodeBlocks(content string) string {
 	// Try to find ```json first, then ```
 	var startIdx int
@@ -235,8 +236,8 @@ func removeMarkdownCodeBlocks(content string) string {
 		startIdx = idx
 		marker = "```"
 	} else {
-		// No code block found, return original content
-		return content
+		// No code block found, return empty string to indicate invalid content
+		return ""
 	}
 
 	// Get content after the opening marker
@@ -245,10 +246,18 @@ func removeMarkdownCodeBlocks(content string) string {
 	// Find the closing ```
 	endIdx := strings.Index(afterMarker, "```")
 	if endIdx == -1 {
-		// No closing marker found, return content after opening marker
-		return afterMarker
+		// No closing marker found, return empty string
+		return ""
 	}
 
 	// Return only the content between markers
-	return afterMarker[:endIdx]
+	extracted := afterMarker[:endIdx]
+	
+	// Validate that extracted content looks like JSON (starts with [ or {)
+	extracted = strings.TrimSpace(extracted)
+	if len(extracted) == 0 || (extracted[0] != '[' && extracted[0] != '{') {
+		return ""
+	}
+	
+	return extracted
 }
