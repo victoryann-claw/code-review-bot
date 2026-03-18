@@ -13,7 +13,9 @@ type Issue struct {
 
 func FormatReviewComment(issues []Issue) string {
 	if len(issues) == 0 {
-		return "## 🤖 AI 代码审查\n\n未发现问题，代码质量良好！🎉"
+		return "## 🤖 AI 代码审查
+
+未发现问题，代码质量良好！🎉"
 	}
 
 	var high, medium, low []Issue
@@ -35,36 +37,52 @@ func FormatReviewComment(issues []Issue) string {
 		reviewResult = "需要修改"
 	}
 
-	comment := "## 🤖 AI 代码审查\n\n"
-	comment += fmt.Sprintf("发现 %d 个问题：%d 个高危，%d 个中危，%d 个低危\n\n", 
+	comment := "## 🤖 AI 代码审查
+
+"
+	comment += fmt.Sprintf("发现 %d 个问题：%d 个高危，%d 个中危，%d 个低危
+
+", 
 		len(issues), len(high), len(medium), len(low))
 
 	if len(high) > 0 {
-		comment += "### 🔴 高危问题\n\n"
+		comment += "### 🔴 高危问题
+
+"
 		for i, issue := range high {
 			comment += formatIssue(issue, i+1)
 		}
-		comment += "\n"
+		comment += "
+"
 	}
 
 	if len(medium) > 0 {
-		comment += "### 🟡 中危问题\n\n"
+		comment += "### 🟡 中危问题
+
+"
 		startIdx := len(high) + 1
 		for i, issue := range medium {
 			comment += formatIssue(issue, startIdx+i)
 		}
-		comment += "\n"
+		comment += "
+"
 	}
 
 	if len(low) > 0 {
-		comment += "### 🟢 低危问题\n\n"
+		comment += "### 🟢 低危问题
+
+"
 		startIdx := len(high) + len(medium) + 1
 		for i, issue := range low {
 			comment += formatIssue(issue, startIdx+i)
 		}
 	}
 
-	comment += fmt.Sprintf("\n---\n**审查结果**: %s\n\n*此审查由AI生成，请在应用前验证建议。*", reviewResult)
+	comment += fmt.Sprintf("
+---
+**审查结果**: %s
+
+*此审查由AI生成，请在应用前验证建议。*", reviewResult)
 
 	return comment
 }
@@ -77,18 +95,23 @@ func formatIssue(issue Issue, index int) string {
 		if issue.Line > 0 {
 			formatted += fmt.Sprintf(":%d", issue.Line)
 		}
-		formatted += "\n"
+		formatted += "
+"
 	} else {
-		formatted += "\n"
+		formatted += "
+"
 	}
 
-	formatted += fmt.Sprintf("   问题描述: %s\n", issue.Description)
+	formatted += fmt.Sprintf("   问题描述: %s
+", issue.Description)
 
 	if issue.Suggestion != "" {
-		formatted += fmt.Sprintf("   建议修复方式: %s\n", issue.Suggestion)
+		formatted += fmt.Sprintf("   建议修复方式: %s
+", issue.Suggestion)
 	}
 
-	return formatted + "\n"
+	return formatted + "
+"
 }
 
 func getIcon(issueType string) string {
@@ -104,4 +127,3 @@ func getIcon(issueType string) string {
 	}
 	return "📝"
 }
-// Chinese review

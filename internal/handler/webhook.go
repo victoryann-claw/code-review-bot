@@ -184,6 +184,7 @@ func HandleWebhook(c *gin.Context) {
 	
 	// Convert types.Issue to formatter.Issue
 	var formIssues []formatter.Issue
+	var highCount, mediumCount int
 	for _, issue := range issues {
 		formIssues = append(formIssues, formatter.Issue{
 			Type:        issue.Type,
@@ -193,6 +194,11 @@ func HandleWebhook(c *gin.Context) {
 			Description: issue.Description,
 			Suggestion:  issue.Suggestion,
 		})
+		if issue.Severity == "high" {
+			highCount++
+		} else if issue.Severity == "medium" {
+			mediumCount++
+		}
 	}
 	
 	comment := formatter.FormatReviewComment(formIssues)
@@ -202,6 +208,20 @@ func HandleWebhook(c *gin.Context) {
 		log.Printf("Error creating review comment: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create comment"})
 		return
+	}
+
+	// Add review result label
+	label := "needs-review"
+	if highCount == 0 && mediumCount == 0 {
+		label = "approved"
+	}
+	
+	err = ghClient.AddLabel(ctx, owner, repoName, prNumber, label)
+	if err != nil {
+		log.Printf("Error adding label: %v", err)
+		// Don't fail the request, just log the error
+	} else {
+		DebugLog("Added label '%s' to PR #%d", label, prNumber)
 	}
 
 	DebugLog("Review completed successfully")
