@@ -96,7 +96,25 @@ func (a *LLMAnalyzer) AnalyzeCode(ctx context.Context, diff string, prDetails *t
 - description: 问题的简要描述（必须使用中文）
 - suggestion: 如何修复或改进（必须使用中文）
 
-请只返回一个有效的 JSON 数组。如果没有发现问题，返回空数组 []。`
+请只返回一个有效的 JSON 数组。如果没有发现问题，返回空数组 []。
+
+响应示例（不要包含 markdown 代码块标记，直接返回 JSON）：
+[
+  {
+    "type": "bug",
+    "severity": "high",
+    "file": "internal/handler/webhook.go",
+    "line": 42,
+    "description": "空指针解引用风险：user 变量可能为 nil",
+    "suggestion": "在使用前检查 user 是否为 nil"
+  },
+  {
+    "type": "style",
+    "severity": "low",
+    "description": "代码格式不规范，建议使用 gofmt 格式化",
+    "suggestion": "运行 gofmt -w . 格式化代码"
+  }
+]`
 
 	userPrompt := buildUserPrompt(diff, prDetails)
 
