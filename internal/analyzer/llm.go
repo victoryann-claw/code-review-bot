@@ -210,7 +210,7 @@ func parseIssues(content string) ([]types.Issue, error) {
 	}
 
 	// Log warning if all parsing methods fail
-	fmt.Printf("[WARN] Failed to parse LLM response as JSON, content: %s\n", content)
+	fmt.Printf("[WARN] Failed to parse LLM response (length: %d), trying alternative extraction\n", len(content))
 	return []types.Issue{}, nil
 }
 
@@ -238,8 +238,8 @@ func removeMarkdownCodeBlocks(content string) string {
 	// Find the closing ```
 	endIdx := strings.Index(afterMarker, "```")
 	if endIdx == -1 {
-		// No closing marker found, return original content
-		return content
+		// No closing marker found, return content after opening marker
+		return afterMarker
 	}
 	
 	// Return only the content between markers
