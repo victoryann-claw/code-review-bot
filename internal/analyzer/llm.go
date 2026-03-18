@@ -26,29 +26,46 @@ func NewLLMAnalyzer() *LLMAnalyzer {
 		provider = "openai"
 	}
 	
-	model := os.Getenv("OPENAI_MODEL")
-	if model == "" {
+	var model string
+	var apiKey string
+	var baseURL string
+	
+	switch provider {
+	case "bailian", "aliyun", "qwen":
+		// Alibaba Cloud Bailian (阿里云百炼)
+		apiKey = os.Getenv("DASHSCOPE_API_KEY")
+		if apiKey == "" {
+			apiKey = os.Getenv("OPENAI_API_KEY") // fallback
+		}
+		model = os.Getenv("DASHSCOPE_MODEL")
+		if model == "" {
+			model = "qwen3.5-plus"
+		}
+		baseURL = "https://dashscope.aliyuncs.com/compatible-mode/v1"
+		
+	case "minimax":
+		apiKey = os.Getenv("MINIMAX_API_KEY")
+		if apiKey == "" {
+			apiKey = os.Getenv("OPENAI_API_KEY")
+		}
 		model = os.Getenv("MINIMAX_MODEL")
+		if model == "" {
+			model = "MiniMax-Text-01"
+		}
+		baseURL = "https://api.minimax.chat/v1"
+		
+	default: // openai
+		apiKey = os.Getenv("OPENAI_API_KEY")
+		model = os.Getenv("OPENAI_MODEL")
 		if model == "" {
 			model = "gpt-4"
 		}
+		baseURL = os.Getenv("LLM_BASE_URL")
 	}
 	
-	apiKey := os.Getenv("OPENAI_API_KEY")
-	if apiKey == "" {
-		apiKey = os.Getenv("MINIMAX_API_KEY")
-	}
-	
-	baseURL := os.Getenv("LLM_BASE_URL")
-
 	cfg := openai.DefaultConfig(apiKey)
 	if baseURL != "" {
 		cfg.BaseURL = baseURL
-	} else if provider == "minimax" {
-		cfg.BaseURL = "https://api.minimax.chat/v1"
-		if model == "gpt-4" {
-			model = "MiniMax-Text-01"
-		}
 	}
 	
 	client := openai.NewClientWithConfig(cfg)
@@ -64,7 +81,7 @@ func NewLLMAnalyzer() *LLMAnalyzer {
 
 // AnalyzeCode analyzes code diff using LLM
 func (a *LLMAnalyzer) AnalyzeCode(ctx context.Context, diff string, prDetails *types.PRDetails) ([]types.Issue, error) {
-	fmt.Printf("[DEBUG] Analyzing code with LLM (%s)\n", a.model)
+	fmt.Printf("[DEBUG] Analyzing code with LLM (%s, provider: %s)\n", a.model, a.provider)
 	
 	systemPrompt := `You are an expert code reviewer. Analyze the following GitHub pull request diff and identify potential issues, bugs, security vulnerabilities, code quality problems, or suggestions for improvement.
 
@@ -80,24 +97,31 @@ Respond ONLY with a valid JSON array. If no issues found, return an empty array 
 
 	userPrompt := buildUserPrompt(diff, prDetails)
 
-	resp, err := a.client.CreateChatCompletion(
-		ctx,
-		openai.ChatCompletionRequest{
-			Model: a.model,
-			Messages: []openai.ChatCompletionMessage{
-				{
-					Role:    openai.ChatMessageRoleSystem,
-					Content: systemPrompt,
-				},
-				{
-					Role:    openai.ChatMessageRoleUser,
-					Content: userPrompt,
-				},
+	// Build request
+	req := openai.ChatCompletionRequest{
+		Model: a.model,
+		Messages: []openai.ChatCompletionMessage{
+			{
+				Role:    openai.ChatMessageRoleSystem,
+				Content: systemPrompt,
 			},
-			Temperature: a.temperature,
-			MaxTokens:   a.maxTokens,
+			{
+				Role:    openai.ChatMessageRoleUser,
+				Content: userPrompt,
+			},
 		},
-	)
+		Temperature: a.temperature,
+		MaxTokens:   a.maxTokens,
+	}
+	
+	// Add response format for Bailian
+	if a.provider == "bailian" || a.provider == "aliyun" || a.provider == "qwen" {
+		req.ResponseFormat = openai.ChatCompletionResponseFormat{
+			Type: "json_object",
+		}
+	}
+	
+	resp, err := a.client.CreateChatCompletion(ctx, req)
 	if err != nil {
 		return nil, err
 	}
