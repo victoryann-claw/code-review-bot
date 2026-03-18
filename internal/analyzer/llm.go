@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/sashabaranov/go-openai"
 	"github.com/victoryann-claw/code-review-bot/internal/types"
@@ -151,26 +152,11 @@ Diff:
 }
 
 func parseIssues(content string) ([]types.Issue, error) {
-	// Try to extract JSON from markdown code blocks
-	start := 0
-	end := len(content)
+	// Remove markdown code blocks, keep content
+	jsonStr := removeMarkdownCodeBlocks(content)
 	
-	// Check for markdown code block
-	if idx := findAnyIndex(content, "```json", "```"); idx != -1 {
-		start = idx + len("```json")
-		if endIdx := findAnyIndex(content[start:], "```"); endIdx != -1 {
-			end = start + endIdx
-		}
-	}
-	
-	jsonStr := content[start:end]
 	// Trim whitespace
-	for len(jsonStr) > 0 && (jsonStr[0] == ' ' || jsonStr[0] == '\n' || jsonStr[0] == '\r' || jsonStr[0] == '\t') {
-		jsonStr = jsonStr[1:]
-	}
-	for len(jsonStr) > 0 && (jsonStr[len(jsonStr)-1] == ' ' || jsonStr[len(jsonStr)-1] == '\n' || jsonStr[len(jsonStr)-1] == '\r' || jsonStr[len(jsonStr)-1] == '\t') {
-		jsonStr = jsonStr[:len(jsonStr)-1]
-	}
+	jsonStr = strings.TrimSpace(jsonStr)
 	
 	// Try direct parse first
 	var issues []types.Issue
@@ -178,7 +164,7 @@ func parseIssues(content string) ([]types.Issue, error) {
 		return issues, nil
 	}
 	
-	// Try to find JSON array in the content
+	// Try to find JSON array in the original content
 	startIdx := -1
 	endIdx := -1
 	depth := 0
@@ -208,20 +194,34 @@ func parseIssues(content string) ([]types.Issue, error) {
 	return []types.Issue{}, nil
 }
 
-func findAnyIndex(s string, substrs ...string) int {
-	for _, substr := range substrs {
-		if idx := findIndex(s, substr); idx != -1 {
-			return idx
-		}
+// removeMarkdownCodeBlocks removes only the code block markers (```json and ```)
+// and returns the content between them
+func removeMarkdownCodeBlocks(content string) string {
+	// Try to find ```json first, then ```
+	var startIdx int
+	var marker string
+	
+	if idx := strings.Index(content, "```json"); idx != -1 {
+		startIdx = idx
+		marker = "```json"
+	} else if idx := strings.Index(content, "```"); idx != -1 {
+		startIdx = idx
+		marker = "```"
+	} else {
+		// No code block found, return original content
+		return content
 	}
-	return -1
-}
-
-func findIndex(s, substr string) int {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return i
-		}
+	
+	// Get content after the opening marker
+	afterMarker := content[startIdx+len(marker):]
+	
+	// Find the closing ```
+	endIdx := strings.Index(afterMarker, "```")
+	if endIdx == -1 {
+		// No closing marker found, return original content
+		return content
 	}
-	return -1
+	
+	// Return only the content between markers
+	return afterMarker[:endIdx]
 }
