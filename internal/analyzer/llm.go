@@ -98,7 +98,7 @@ func (a *LLMAnalyzer) AnalyzeCode(ctx context.Context, diff string, prDetails *t
 
 请只返回一个有效的 JSON 数组。如果没有发现问题，返回空数组 []。
 
-响应示例（不要包含 markdown 代码块标记，直接返回 JSON）：
+响应示例（系统会自动处理 Markdown 代码块标记，请直接返回 JSON）：
 [
   {
     "type": "bug",
@@ -170,19 +170,25 @@ Diff:
 }
 
 func parseIssues(content string) ([]types.Issue, error) {
-	// Remove markdown code blocks, keep content
-	jsonStr := removeMarkdownCodeBlocks(content)
+	// Trim whitespace first
+	content = strings.TrimSpace(content)
 	
-	// Trim whitespace
+	// Try direct parse first (in case LLM returns clean JSON without markdown)
+	var issues []types.Issue
+	if err := json.Unmarshal([]byte(content), &issues); err == nil {
+		return issues, nil
+	}
+	
+	// Try to remove markdown code blocks and parse again
+	jsonStr := removeMarkdownCodeBlocks(content)
 	jsonStr = strings.TrimSpace(jsonStr)
 	
-	// Try direct parse first
-	var issues []types.Issue
 	if err := json.Unmarshal([]byte(jsonStr), &issues); err == nil {
 		return issues, nil
 	}
 	
-	// Try to find JSON array in the original content
+	// Fallback: try to find JSON array in the original content using bracket matching
+	// This handles cases where content contains nested backticks
 	startIdx := -1
 	endIdx := -1
 	depth := 0
@@ -209,7 +215,7 @@ func parseIssues(content string) ([]types.Issue, error) {
 		}
 	}
 
-	// Log warning if all parsing methods fail
+	// Log warning if all parsing methods fail (only log length for security)
 	fmt.Printf("[WARN] Failed to parse LLM response (length: %d), trying alternative extraction\n", len(content))
 	return []types.Issue{}, nil
 }
