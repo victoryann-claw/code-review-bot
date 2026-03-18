@@ -83,17 +83,17 @@ func NewLLMAnalyzer() *LLMAnalyzer {
 func (a *LLMAnalyzer) AnalyzeCode(ctx context.Context, diff string, prDetails *types.PRDetails) ([]types.Issue, error) {
 	fmt.Printf("[DEBUG] Analyzing code with LLM (%s, provider: %s)\n", a.model, a.provider)
 	
-	systemPrompt := `You are an expert code reviewer. Analyze the following GitHub pull request diff and identify potential issues, bugs, security vulnerabilities, code quality problems, or suggestions for improvement.
+	systemPrompt := `你是一位资深的代码审查专家。请分析以下 GitHub Pull Request 的代码差异，识别潜在的问题、bug、安全漏洞、代码质量问题或改进建议。
 
-For each issue found, respond with a JSON array of objects with these fields:
+请为每个发现的问题返回一个 JSON 对象数组，包含以下字段：
 - type: "bug", "security", "performance", "style", "suggestion"
 - severity: "high", "medium", "low"
-- file: filename (if applicable)
-- line: line number (if applicable)
-- description: brief description of the issue
-- suggestion: how to fix or improve
+- file: 文件名（如适用）
+- line: 行号（如适用）
+- description: 问题的简要描述（使用中文）
+- suggestion: 如何修复或改进（使用中文）
 
-Respond ONLY with a valid JSON array. If no issues found, return an empty array [].`
+请只返回一个有效的 JSON 数组。如果没有发现问题，返回空数组 []。`
 
 	userPrompt := buildUserPrompt(diff, prDetails)
 
