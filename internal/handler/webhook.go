@@ -104,11 +104,7 @@ func HandleWebhook(c *gin.Context) {
 		return
 	}
 
-	// Clear issue deduplication cache when PR is reopened
-	if action == "opened" {
-		clearSeenIssues(prNumber)
-	}
-
+	// Get PR and repository info first
 	pr := eventPayload.PullRequest
 	repo := eventPayload.Repository
 	owner := repo.Owner.Login
@@ -116,6 +112,11 @@ func HandleWebhook(c *gin.Context) {
 	prNumber := pr.Number
 	if prNumber == 0 {
 		prNumber = eventPayload.Number
+	}
+
+	// Clear issue deduplication cache when PR is reopened
+	if action == "opened" {
+		llmAnalyzer.ClearSeenIssues(owner, repoName, prNumber)
 	}
 
 	DebugLog("Processing PR #%d from %s/%s", prNumber, owner, repoName)
@@ -171,6 +172,8 @@ func HandleWebhook(c *gin.Context) {
 		Base:   prDetails.Base,
 		Author: prDetails.Author,
 		URL:    prDetails.URL,
+		Owner:  owner,
+		Repo:   repoName,
 	})
 	if err != nil {
 		log.Printf("Error analyzing code: %v", err)

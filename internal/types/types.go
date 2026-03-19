@@ -19,4 +19,6 @@ type PRDetails struct {
 	Base   string `json:"base"`
 	Author string `json:"author"`
 	URL    string `json:"url"`
+	Owner  string `json:"owner"`
+	Repo   string `json:"repo"`
 }

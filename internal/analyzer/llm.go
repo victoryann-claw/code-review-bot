@@ -20,13 +20,21 @@ var (
 	seenIssues   = make(map[string]map[string]bool)
 )
 
-// ClearSeenIssues clears the deduplication cache for a PR when action=opened
-func ClearSeenIssues(prNumber int) {
-	key := fmt.Sprintf("pr-%d", prNumber)
+// ClearSeenIssues clears the deduplication cache for a PR when action=opened or merged
+func ClearSeenIssues(owner, repo string, prNumber int) {
+	key := fmt.Sprintf("%s/%s/pr-%d", owner, repo, prNumber)
 	seenIssuesMu.Lock()
 	defer seenIssuesMu.Unlock()
 	delete(seenIssues, key)
 	log.Printf("[DEBUG] Cleared seen issues cache for %s", key)
+}
+
+// ClearAllSeenIssues clears all deduplication cache (for testing)
+func ClearAllSeenIssues() {
+	seenIssuesMu.Lock()
+	defer seenIssuesMu.Unlock()
+	seenIssues = make(map[string]map[string]bool)
+	log.Printf("[DEBUG] Cleared all seen issues cache")
 }
 
 // hashIssue creates a stable hash key for issue deduplication
@@ -40,12 +48,12 @@ func hashIssue(file string, line int, description string) string {
 }
 
 // deduplicateIssues removes duplicate issues based on file+line+description hash
-func deduplicateIssues(issues []types.Issue, prNumber int) []types.Issue {
+func deduplicateIssues(issues []types.Issue, owner, repo string, prNumber int) []types.Issue {
 	if len(issues) == 0 {
 		return issues
 	}
 	
-	key := fmt.Sprintf("pr-%d", prNumber)
+	key := fmt.Sprintf("%s/%s/pr-%d", owner, repo, prNumber)
 	
 	seenIssuesMu.Lock()
 	defer seenIssuesMu.Unlock()
@@ -270,8 +278,8 @@ func (a *LLMAnalyzer) AnalyzeCode(ctx context.Context, diff string, prDetails *t
 
 	log.Printf("[DEBUG] LLM found %d issues", len(issues))
 	
-	// Apply deduplication - issues are deduplicated per PR
-	uniqueIssues := deduplicateIssues(issues, prDetails.Number)
+	// Apply deduplication - issues are deduplicated per PR (using owner+repo+prNumber as key)
+	uniqueIssues := deduplicateIssues(issues, prDetails.Owner, prDetails.Repo, prDetails.Number)
 	
 	return uniqueIssues, nil
 }
