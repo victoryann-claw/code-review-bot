@@ -77,7 +77,7 @@ func (g *GitHubClient) GetPullRequestDiff(ctx context.Context, owner, repo strin
 		return "", fmt.Errorf("failed to fetch diff: status %d", resp.StatusCode)
 	}
 
-	buf, err := io.ReadAll(resp.Body)
+	buf, err := io.ReadAll(io.LimitReader(resp.Body, 10*1024*1024))
 	if err != nil {
 		return "", fmt.Errorf("failed to read diff: %w", err)
 	}
