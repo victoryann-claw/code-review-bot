@@ -104,6 +104,11 @@ func HandleWebhook(c *gin.Context) {
 		return
 	}
 
+	// Clear issue deduplication cache when PR is reopened
+	if action == "opened" {
+		clearSeenIssues(prNumber)
+	}
+
 	pr := eventPayload.PullRequest
 	repo := eventPayload.Repository
 	owner := repo.Owner.Login

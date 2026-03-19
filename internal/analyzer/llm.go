@@ -2,6 +2,7 @@ package analyzer
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -11,6 +12,52 @@ import (
 	"github.com/sashabaranov/go-openai"
 	"github.com/victoryann-claw/code-review-bot/internal/types"
 )
+
+// Issue deduplication state - persists across reviews for the same PR
+var seenIssues = make(map[string]map[string]bool)
+
+// ClearSeenIssues clears the deduplication cache for a PR when action=opened
+func ClearSeenIssues(prNumber int) {
+	key := fmt.Sprintf("pr-%d", prNumber)
+	seenIssues[key] = make(map[string]bool)
+	log.Printf("[DEBUG] Cleared seen issues cache for %s", key)
+}
+
+// hashIssue creates a stable hash key for issue deduplication
+func hashIssue(file string, line int, description string) string {
+	// Normalize description: lowercase, remove extra spaces
+	desc := strings.ToLower(description)
+	desc = strings.Join(strings.Fields(desc), " ")
+	h := sha256.New()
+	h.Write([]byte(fmt.Sprintf("%s:%d:%s", file, line, desc)))
+	return fmt.Sprintf("%x", h.Sum(nil))[:16] // Use first 16 chars
+}
+
+// deduplicateIssues removes duplicate issues based on file+line+description hash
+func deduplicateIssues(issues []types.Issue, prNumber int) []types.Issue {
+	if len(issues) == 0 {
+		return issues
+	}
+	
+	key := fmt.Sprintf("pr-%d", prNumber)
+	if seenIssues[key] == nil {
+		seenIssues[key] = make(map[string]bool)
+	}
+	
+	var unique []types.Issue
+	for _, issue := range issues {
+		h := hashIssue(issue.File, issue.Line, issue.Description)
+		if !seenIssues[key][h] {
+			seenIssues[key][h] = true
+			unique = append(unique, issue)
+		}
+	}
+	
+	if len(unique) < len(issues) {
+		log.Printf("[DEBUG] Deduplicated %d issues down to %d", len(issues), len(unique))
+	}
+	return unique
+}
 
 // LLMAnalyzer handles code analysis using LLM
 type LLMAnalyzer struct {
@@ -197,7 +244,11 @@ func (a *LLMAnalyzer) AnalyzeCode(ctx context.Context, diff string, prDetails *t
 	}
 
 	log.Printf("[DEBUG] LLM found %d issues", len(issues))
-	return issues, nil
+	
+	// Apply deduplication - issues are deduplicated per PR
+	uniqueIssues := deduplicateIssues(issues, prDetails.Number)
+	
+	return uniqueIssues, nil
 }
 
 func buildUserPrompt(diff string, prDetails *types.PRDetails) string {
