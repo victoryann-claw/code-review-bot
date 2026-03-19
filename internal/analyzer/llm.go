@@ -89,6 +89,11 @@ func (a *LLMAnalyzer) AnalyzeCode(ctx context.Context, diff string, prDetails *t
 
 请用中文回复。description（问题描述）和 suggestion（修复建议）必须使用中文。
 
+**⚠️ 重要提醒：分析代码变更时请务必准确！**
+- 对于 import 包的检查：仔细查看 diff 中新增的 import 语句，然后在代码变更部分搜索该包名+点号（如 strings.、fmt.、os.）的模式，确认该包的方法确实被调用
+- 不要仅凭 import 语句是否存在就判断"未使用"——必须确认代码中实际调用了该包的函数
+- diff 显示的是变更的部分，但函数体内部的实现可能也发生了变化，需要仔细检查
+
 **重要：JSON 键名必须保持英文**，否则后端无法解析。返回格式如下：
 - type: 问题类型，如 "bug"、"security"、"performance"、"style"、"suggestion"（必须英文）
 - severity: 严重程度，如 "high"、"medium"、"low"（必须英文）
@@ -219,7 +224,7 @@ func parseIssues(content string) ([]types.Issue, error) {
 
 	// Log warning if all parsing methods fail
 	log.Printf("[WARN] Failed to parse LLM response after all attempts (length: %d)", len(content))
-	return []types.Issue{}, fmt.Errorf("failed to parse LLM response: invalid JSON format")
+	return nil, fmt.Errorf("failed to parse LLM response: invalid JSON format")
 }
 
 // removeMarkdownCodeBlocks removes only the code block markers (```json and ```)
@@ -252,12 +257,12 @@ func removeMarkdownCodeBlocks(content string) string {
 
 	// Return only the content between markers
 	extracted := afterMarker[:endIdx]
-	
+
 	// Validate that extracted content looks like JSON (starts with [ or {)
 	extracted = strings.TrimSpace(extracted)
 	if len(extracted) == 0 || (extracted[0] != '[' && extracted[0] != '{') {
 		return ""
 	}
-	
+
 	return extracted
 }
