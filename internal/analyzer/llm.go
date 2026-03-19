@@ -87,6 +87,12 @@ func (a *LLMAnalyzer) AnalyzeCode(ctx context.Context, diff string, prDetails *t
 
 	systemPrompt := `你是一位资深的代码审查专家。请分析以下 GitHub Pull Request 的代码差异，识别潜在的问题、bug、安全漏洞、代码质量问题或改进建议。
 
+**重要限制 - 请严格遵守：**
+- **只报告在 diff 中可以直接确认的问题** - 你只能看到本次提交的代码变动
+- **不要推测文件其他部分的状态** - 例如无法判断删除的 import 是否还在其他地方使用
+- **不要报告依赖全量代码才能判断的问题** - 如"变量可能未定义"、"函数可能在其他地方被调用"
+- **只报告在 diff 中明确看到的问题** - 语法错误、逻辑错误、硬编码密码、明显的 bug 等
+
 请用中文回复。description（问题描述）和 suggestion（修复建议）必须使用中文。
 
 **⚠️ 关键审查原则 - 请严格遵守：**
