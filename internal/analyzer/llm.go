@@ -148,8 +148,8 @@ func (a *LLMAnalyzer) AnalyzeCode(ctx context.Context, diff string, prDetails *t
 		MaxTokens:   a.maxTokens,
 	}
 
-	// Add response format for Bailian
-	if a.provider == "bailian" || a.provider == "aliyun" || a.provider == "qwen" {
+	// Add response format for Bailian and OpenAI to ensure JSON output
+	if a.provider == "bailian" || a.provider == "aliyun" || a.provider == "qwen" || a.provider == "openai" || a.provider == "minimax" {
 		req.ResponseFormat = openai.ChatCompletionResponseFormat{
 			Type: "json_object",
 		}
