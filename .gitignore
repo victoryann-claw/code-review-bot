@@ -31,3 +31,5 @@ Thumbs.db
 # Test coverage
 *.out
 coverage.txt
+bot.log
+bot.log
