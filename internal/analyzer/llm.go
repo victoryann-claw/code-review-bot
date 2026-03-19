@@ -172,8 +172,8 @@ func (a *LLMAnalyzer) AnalyzeCode(ctx context.Context, diff string, prDetails *t
 	issues, err := parseIssues(content)
 	if err != nil {
 		log.Printf("[DEBUG] Failed to parse LLM response: %v", err)
-		// Return empty issues with error to indicate parsing failure
-		return nil, fmt.Errorf("failed to parse LLM response: %w", err)
+		// Return empty issues instead of nil to avoid nil pointer dereference
+		return []types.Issue{}, nil
 	}
 
 	log.Printf("[DEBUG] LLM found %d issues", len(issues))
