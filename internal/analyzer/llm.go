@@ -133,7 +133,7 @@ func NewLLMAnalyzer() *LLMAnalyzer {
 		client:      client,
 		provider:    provider,
 		model:       model,
-		temperature: 0.3,
+		temperature: 0.0,
 		maxTokens:   8000,
 	}
 }
@@ -171,6 +171,21 @@ func (a *LLMAnalyzer) AnalyzeCode(ctx context.Context, diff string, prDetails *t
 - 安全漏洞（硬编码密码、SQL 注入等）
 - 明显的空指针/越界访问（diff 中明确显示）
 - 功能性 bug（功能实现明显错误）
+
+**🔍 存在性检查（Grounding）- 强制执行：**
+当你报告"缺少函数"、"函数未定义"、"调用未定义的函数"等问题时：
+1. 先列出你在 diff 中搜索该关键词的结果
+2. 如果搜索结果不为空（即函数确实在 diff 中存在），则**禁止**报告此问题
+3. 示例：
+   - ❌ 错误："removeMarkdownCodeBlocks 函数未定义"
+   - ✅ 正确：先搜索"removeMarkdownCodeBlocks"，如果找到定义，则不报告
+
+**🔄 自我验证（Self-Correction）- 强制执行：**
+在完成审查输出之前，增加一步验证：
+1. 重新检查你发现的每一个问题
+2. 确认"这个问题在 diff 中确实存在"，而不是"我猜测可能有问题"
+3. 如果发现任何不确定的问题，**直接删除**，不要报告
+4. 宁可漏报，不要误报
 
 **⚠️ 关键审查原则 - 请严格遵守：**
 
