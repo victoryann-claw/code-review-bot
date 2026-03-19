@@ -89,10 +89,23 @@ func (a *LLMAnalyzer) AnalyzeCode(ctx context.Context, diff string, prDetails *t
 
 请用中文回复。description（问题描述）和 suggestion（修复建议）必须使用中文。
 
-**⚠️ 重要提醒：分析代码变更时请务必准确！**
-- 对于 import 包的检查：仔细查看 diff 中新增的 import 语句，然后在代码变更部分搜索该包名+点号（如 strings.、fmt.、os.）的模式，确认该包的方法确实被调用
-- 不要仅凭 import 语句是否存在就判断"未使用"——必须确认代码中实际调用了该包的函数
-- diff 显示的是变更的部分，但函数体内部的实现可能也发生了变化，需要仔细检查
+**⚠️ 关键审查原则 - 请严格遵守：**
+
+1. **关于 import 包使用的检查（最重要！）**：
+   - 步骤1：先看 diff 中新增的 import 语句（如 import "strings"、import "log"）
+   - 步骤2：在整个 diff 的代码变更部分搜索该包名+点号（如 strings.、fmt.、log.、os.）
+   - 步骤3：只有当步骤2找不到任何该包的函数调用时，才能判定为"未使用"
+   - 特别注意：diff 显示的是变更的部分，但函数体内部可能也有变更，必须仔细检查
+   
+2. **关于代码优化/重构类 PR**：
+   - 如果 PR 只是简单的代码优化（如 fmt.Printf→log.Printf、用标准库替换第三方库）
+   - 且没有引入任何功能性变更或潜在 bug
+   - 那么应该判定为"无问题"，返回空数组 []
+   
+3. **严格的问题判定标准**：
+   - 只有真正影响功能、安全或性能的问题才需要报告
+   - 轻微的代码风格问题（如可以忽略的格式化建议）不应报告
+   - 不要吹毛求疵，过度审查
 
 **重要：JSON 键名必须保持英文**，否则后端无法解析。返回格式如下：
 - type: 问题类型，如 "bug"、"security"、"performance"、"style"、"suggestion"（必须英文）
@@ -113,12 +126,6 @@ func (a *LLMAnalyzer) AnalyzeCode(ctx context.Context, diff string, prDetails *t
     "line": 42,
     "description": "空指针解引用风险：user 变量可能为 nil",
     "suggestion": "在使用前检查 user 是否为 nil"
-  },
-  {
-    "type": "style",
-    "severity": "low",
-    "description": "代码格式不规范，建议使用 gofmt 格式化",
-    "suggestion": "运行 gofmt -w . 格式化代码"
   }
 ]`
 
