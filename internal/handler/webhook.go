@@ -18,9 +18,9 @@ import (
 // GitHubEvent represents a GitHub webhook event
 type GitHubEvent struct {
 	Action      string `json:"action"`
-	Number     int `json:"number"`
+	Number      int    `json:"number"`
 	PullRequest struct {
-		Number int `json:"number"`
+		Number int    `json:"number"`
 		Title  string `json:"title"`
 		Body   string `json:"body"`
 		Head   struct {
@@ -70,7 +70,7 @@ func HandleWebhook(c *gin.Context) {
 			"x-hub-signature-256": c.GetHeader("X-Hub-Signature-256"),
 			"x-hub-signature":     c.GetHeader("X-Hub-Signature"),
 		})
-		
+
 		if !ValidateSignature(signature, []byte(rawBody), secret) {
 			log.Println("Invalid webhook signature")
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid signature"})
@@ -104,6 +104,7 @@ func HandleWebhook(c *gin.Context) {
 		return
 	}
 
+	// Get PR and repository info first
 	pr := eventPayload.PullRequest
 	repo := eventPayload.Repository
 	owner := repo.Owner.Login
@@ -111,6 +112,11 @@ func HandleWebhook(c *gin.Context) {
 	prNumber := pr.Number
 	if prNumber == 0 {
 		prNumber = eventPayload.Number
+	}
+
+	// Clear issue deduplication cache when PR is reopened
+	if action == "opened" {
+		llmAnalyzer.ClearSeenIssues(owner, repoName, prNumber)
 	}
 
 	DebugLog("Processing PR #%d from %s/%s", prNumber, owner, repoName)
@@ -166,6 +172,8 @@ func HandleWebhook(c *gin.Context) {
 		Base:   prDetails.Base,
 		Author: prDetails.Author,
 		URL:    prDetails.URL,
+		Owner:  owner,
+		Repo:   repoName,
 	})
 	if err != nil {
 		log.Printf("Error analyzing code: %v", err)
@@ -181,7 +189,7 @@ func HandleWebhook(c *gin.Context) {
 
 	// Format and post review comment
 	DebugLog("Posting %d review comments...", len(issues))
-	
+
 	// Convert types.Issue to formatter.Issue
 	var formIssues []formatter.Issue
 	for _, issue := range issues {
@@ -194,7 +202,7 @@ func HandleWebhook(c *gin.Context) {
 			Suggestion:  issue.Suggestion,
 		})
 	}
-	
+
 	comment := formatter.FormatReviewComment(formIssues)
 
 	_, err = ghClient.CreateReviewComment(ctx, owner, repoName, prNumber, comment)

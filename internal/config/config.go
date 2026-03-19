@@ -13,16 +13,16 @@ type Config struct {
 		Port string `yaml:"port"`
 	} `yaml:"server"`
 	GitHub struct {
-		Token            string `yaml:"token"`
-		WebhookSecret    string `yaml:"webhook_secret"`
+		Token         string `yaml:"token"`
+		WebhookSecret string `yaml:"webhook_secret"`
 	} `yaml:"github"`
 	LLM struct {
-		Provider   string  `yaml:"provider"`
-		APIKey     string  `yaml:"api_key"`
-		Model      string  `yaml:"model"`
-		BaseURL    string  `yaml:"base_url"`
+		Provider    string  `yaml:"provider"`
+		APIKey      string  `yaml:"api_key"`
+		Model       string  `yaml:"model"`
+		BaseURL     string  `yaml:"base_url"`
 		Temperature float64 `yaml:"temperature"`
-		MaxTokens  int     `yaml:"max_tokens"`
+		MaxTokens   int     `yaml:"max_tokens"`
 	} `yaml:"llm"`
 	Debug bool `yaml:"debug"`
 }
