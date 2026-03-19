@@ -3,6 +3,7 @@ package github
 import (
 	"context"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 
@@ -76,13 +77,12 @@ func (g *GitHubClient) GetPullRequestDiff(ctx context.Context, owner, repo strin
 		return "", fmt.Errorf("failed to fetch diff: status %d", resp.StatusCode)
 	}
 
-	buf := make([]byte, resp.ContentLength+1024)
-	n, err := resp.Body.Read(buf)
-	if err != nil && err.Error() != "EOF" {
+	buf, err := io.ReadAll(resp.Body)
+	if err != nil {
 		return "", fmt.Errorf("failed to read diff: %w", err)
 	}
 
-	return string(buf[:n]), nil
+	return string(buf), nil
 }
 
 // CreateReviewComment creates a comment on the pull request
