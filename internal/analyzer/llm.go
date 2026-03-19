@@ -8,18 +8,24 @@ import (
 	"log"
 	"os"
 	"strings"
+	"sync"
 
 	"github.com/sashabaranov/go-openai"
 	"github.com/victoryann-claw/code-review-bot/internal/types"
 )
 
 // Issue deduplication state - persists across reviews for the same PR
-var seenIssues = make(map[string]map[string]bool)
+var (
+	seenIssuesMu sync.Mutex
+	seenIssues   = make(map[string]map[string]bool)
+)
 
 // ClearSeenIssues clears the deduplication cache for a PR when action=opened
 func ClearSeenIssues(prNumber int) {
 	key := fmt.Sprintf("pr-%d", prNumber)
-	seenIssues[key] = make(map[string]bool)
+	seenIssuesMu.Lock()
+	defer seenIssuesMu.Unlock()
+	delete(seenIssues, key)
 	log.Printf("[DEBUG] Cleared seen issues cache for %s", key)
 }
 
@@ -40,6 +46,10 @@ func deduplicateIssues(issues []types.Issue, prNumber int) []types.Issue {
 	}
 	
 	key := fmt.Sprintf("pr-%d", prNumber)
+	
+	seenIssuesMu.Lock()
+	defer seenIssuesMu.Unlock()
+	
 	if seenIssues[key] == nil {
 		seenIssues[key] = make(map[string]bool)
 	}
