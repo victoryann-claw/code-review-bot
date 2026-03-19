@@ -279,7 +279,14 @@ func (a *LLMAnalyzer) AnalyzeCode(ctx context.Context, diff string, prDetails *t
 	log.Printf("[DEBUG] LLM found %d issues", len(issues))
 	
 	// Apply deduplication - issues are deduplicated per PR (using owner+repo+prNumber as key)
-	uniqueIssues := deduplicateIssues(issues, prDetails.Owner, prDetails.Repo, prDetails.Number)
+	// Skip deduplication if prDetails is nil or missing owner/repo info
+	var uniqueIssues []types.Issue
+	if prDetails != nil && prDetails.Owner != "" && prDetails.Repo != "" {
+		uniqueIssues = deduplicateIssues(issues, prDetails.Owner, prDetails.Repo, prDetails.Number)
+	} else {
+		uniqueIssues = issues
+		log.Printf("[WARN] Skipping deduplication due to missing prDetails info")
+	}
 	
 	return uniqueIssues, nil
 }
