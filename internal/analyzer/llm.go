@@ -237,7 +237,7 @@ func parseIssues(content string) ([]types.Issue, error) {
 
 	// Log warning if all parsing methods fail
 	log.Printf("[WARN] Failed to parse LLM response after all attempts (length: %d)", len(content))
-	return nil, fmt.Errorf("failed to parse LLM response: invalid JSON format")
+	return []types.Issue{}, nil
 }
 
 // removeMarkdownCodeBlocks removes only the code block markers (```json and ```)
@@ -254,8 +254,8 @@ func removeMarkdownCodeBlocks(content string) string {
 		startIdx = idx
 		marker = "```"
 	} else {
-		// No code block found, return empty string to indicate invalid content
-		return ""
+		// No code block found - return original content for direct JSON parsing
+		return content
 	}
 
 	// Get content after the opening marker
